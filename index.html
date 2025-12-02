@@ -1,11 +1,378 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<link rel="stylesheet" href="style.css" />
-<script defer src="script.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>API Security Learning Platform</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(135deg, #eef2ff, #f8fafc);
+        transition: background 0.4s ease;
+    }
+    header {
+        background: linear-gradient(90deg, #1e3a8a, #2563eb);
+        color: white;
+        padding: 25px;
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 25px;
+        padding: 40px;
+        animation: fadeIn 0.7s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px);} 
+        to { opacity: 1; transform: translateY(0);} 
+    }
+    .lesson-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        padding: 15px;
+        cursor: pointer;
+        transition: transform .25s ease, box-shadow .25s ease;
+    }
+    .lesson-card:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+    }
+    .lesson-card img {
+        width: 100%;
+        height: 130px;
+        object-fit: cover;
+        border-radius: 12px;
+    }
+    #lesson-content, #quiz-page, #score-page {
+        padding: 40px;
+        animation: fadeIn 0.5s ease;
+    }
+    #quiz-questions div {
+        background: white;
+        padding: 20px;
+        margin: 15px 0;
+        border-radius: 12px;
+        box-shadow: 0 5px 12px rgba(0,0,0,0.1);
+        transition: transform .2s, box-shadow .2s;
+    }
+    #quiz-questions div:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+    button {
+        padding: 12px 24px;
+        font-size: 18px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        cursor: pointer;
+        transition: transform .2s ease, box-shadow .2s ease;
+        margin-right: 10px;
+    }
+    button:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    }
+    #timer {
+        font-weight: bold;
+        color: #ef4444;
+    }
+
+/* Timer progress bar */
+#timer-bar { width: 100%; height: 12px; background: #e5e7eb; border-radius: 6px; margin-top: 10px; overflow: hidden; }
+#timer-fill { height: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); width:100%; transition: width 1s linear; }
+
+/* Page transitions */
+.fade-out { opacity:0; transition:opacity .4s; }
+.fade-in { opacity:1; transition:opacity .4s; }
+
+/* Drag animations */
+.draggable { padding:8px 14px; background:#dbeafe; border-radius:8px; cursor:grab; display:inline-block; transition:transform .2s; }
+.draggable:active { transform:scale(1.1); cursor:grabbing; }
+
+/* Dark mode */
+.dark { background:#0f172a; color:white; }
+.dark .lesson-card { background:#1e293b; }
+.dark button { background:linear-gradient(135deg,#475569,#334155); }
+
+/* Badges */
+.badge { width:120px; margin-top:20px; animation:pop .5s ease; }
+@keyframes pop { from{transform:scale(0);} to{transform:scale(1);} }
+</style>
 </head>
 <body>
-<header>API Security Learning Portal</header>
-<div class="grid" id="lesson-grid"></div>
+<header>API Security Learning Platform</header>
+
+<!-- HOME PAGE -->
+<div id="home-page" class="grid"></div>
+
+<!-- LESSON PAGE -->
+<div id="lesson-content" class="hidden">
+    <h2 id="lesson-title"></h2>
+    <p id="lesson-text"></p>
+    <div style="margin-top:20px;">
+        <button onclick="prevPage()">Previous Page</button>
+        <button onclick="nextPage()">Next Page</button>
+        <button onclick="startQuiz()">Start Quiz</button>
+    </div>
+</div>
+
+<!-- QUIZ PAGE -->
+<div id="quiz-page" class="hidden">
+    <h2 id="quiz-title"></h2>
+    <p>Time Left: <span id="timer">300s</span></p>
+    <div id="timer-bar"><div id="timer-fill"></div></div>
+    <div id="quiz-questions"></div>
+    <button onclick="submitQuiz()">Submit Quiz</button>
+</div>
+
+<!-- SCORE PAGE -->
+<div id="score-page" class="hidden">
+    <h2>Your Score</h2>
+    <p id="score-display"></p>
+    <div id="badge-display"></div>
+    <button onclick="goHome()">Return Home</button>
+</div>
+
+<script>
+// Data: lessons and content
+const lessons = [
+    "API Authentication Basics","OAuth 2.0","API Rate Limiting","Input Validation","SQL Injection Prevention",
+    "API Logging & Monitoring","Secure Tokens","CORS Security","Transport Layer Security","Error Handling Security"
+];
+
+const lessonContent = [
+    `API Authentication Basics\n\nAuthentication ensures only verified users or systems can access an API.\nTopics Covered:\n- Why authentication matters\n- Common authentication methods (API keys, tokens)\n- Best practices for securing credentials\n\nPage 2:\n- Threats from weak authentication\n- Example: Hardcoded API keys\n- How to rotate API keys safely`,
+
+    `OAuth 2.0 Fundamentals\n\nOAuth 2.0 allows third-party apps to access resources without exposing passwords.\nTopics Covered:\n- Roles in OAuth (client, resource owner, authorization server)\n- Access tokens vs refresh tokens\n\nPage 2:\n- Authorization Code flow explained\n- Common security pitfalls\n- PKCE enhancement`,
+
+    `API Rate Limiting\n\nRate limiting prevents abuse by restricting how many requests a client can make.\nTopics Covered:\n- Types of rate limits (fixed window, sliding window)\n- Preventing DDoS attacks\n\nPage 2:\n- Real-world API rate limit examples\n- Best practices for communicating limits`,
+
+    `Input Validation\n\nInput validation ensures all data entering an API is safe.\nTopics Covered:\n- Types of validations (type, format, sanitization)\n- Avoiding malformed requests\n\nPage 2:\n- Common mistakes in validation\n- OWASP recommendations`,
+
+    `SQL Injection Prevention\n\nSQL injection occurs when attackers manipulate queries using unsanitized input.\nTopics Covered:\n- Parameterized queries\n- Escaping input safely\n\nPage 2:\n- Real attack examples\n- Using ORM frameworks for protection`,
+
+    `API Logging & Monitoring\n\nLogging helps detect malicious behavior early.\nTopics Covered:\n- What to log (auth attempts, errors, unusual patterns)\n- Secure log storage\n\nPage 2:\n- Setting up alerting\n- Tools for monitoring (ELK, CloudWatch)`,
+
+    `Secure Tokens\n\nTokens authenticate API calls securely.\nTopics Covered:\n- JWT vs opaque tokens\n- Token expiration & rotation\n\nPage 2:\n- Risks of long‑lived tokens\n- Token revocation strategies`,
+
+    `CORS Security\n\nCORS controls which websites can access your API.\nTopics Covered:\n- Same-origin policy\n- CORS headers explained\n\nPage 2:\n- Misconfiguration risks\n- Safe CORS patterns`,
+
+    `Transport Layer Security (TLS)\n\nTLS encrypts data between clients and servers.\nTopics Covered:\n- HTTPS basics\n- Certificates and encryption\n\nPage 2:\n- TLS versions\n- HSTS & secure cipher suites`,
+
+    `Error Handling Security\n\nError messages reveal system behavior—sometimes too much.\nTopics Covered:\n- Avoid leaking sensitive details\n- Standardized error responses\n\nPage 2:\n- Secure exception handling\n- Logging errors without exposing them to users`
+];
+
+// Build lesson grid on home page
+const home = document.getElementById('home-page');
+lessons.forEach((title, index) => {
+    const card = document.createElement('div');
+    card.className = 'lesson-card';
+    card.innerHTML = `<img src="https://via.placeholder.com/400x200?text=Lesson+${index+1}" alt="Lesson ${index+1}" /><h3>${title}</h3>`;
+    card.onclick = () => openLesson(index);
+    home.appendChild(card);
+});
+
+// State
+let currentLesson = 0;
+let currentPage = 0;
+let timer = null;
+let timeLeft = 300; // seconds
+
+// Lesson navigation
+function openLesson(i) {
+    currentLesson = i;
+    currentPage = 0;
+    document.getElementById('home-page').classList.add('hidden');
+    document.getElementById('lesson-content').classList.remove('hidden');
+    document.getElementById('lesson-title').textContent = lessons[i];
+    loadLessonPage();
+}
+
+function loadLessonPage() {
+    const pages = lessonContent[currentLesson].split('Page 2:');
+    // show page 1 or page 2; trim to be neat
+    const content = (currentPage === 0 ? pages[0] : (pages[1] || ''));
+    document.getElementById('lesson-text').textContent = content.trim();
+}
+
+function nextPage() {
+    currentPage = Math.min(1, currentPage + 1);
+    loadLessonPage();
+}
+
+function prevPage() {
+    currentPage = Math.max(0, currentPage - 1);
+    loadLessonPage();
+}
+
+// Page transitions
+function transitionPage(hideId, showId){
+    const hideEl=document.getElementById(hideId);
+    const showEl=document.getElementById(showId);
+    hideEl.classList.add('fade-out');
+    setTimeout(()=>{
+        hideEl.classList.add('hidden');
+        hideEl.classList.remove('fade-out');
+        showEl.classList.remove('hidden');
+        showEl.classList.add('fade-in');
+        setTimeout(()=>showEl.classList.remove('fade-in'),400);
+    },400);
+}
+
+// Quiz logic (renders TF, MC, DD)
+function startQuiz() {
+    transitionPage('lesson-content','quiz-page');
+    document.getElementById('quiz-title').textContent = lessons[currentLesson] + ' Quiz';
+    loadQuestions();
+    startTimer();
+}
+
+function loadQuestions() {
+    const quizContainer = document.getElementById('quiz-questions');
+    quizContainer.innerHTML = '';
+
+    // Sample questions per lesson (could be expanded later)
+    const questions = [
+        { type: 'tf', text: 'APIs should never expose sensitive error messages.', answer: true },
+        { type: 'mc', text: 'Which token type is most secure?', options: ['Long‑lived tokens', 'Short‑lived tokens', 'Plaintext tokens'], answer: 1 },
+        { type: 'tf', text: 'Rate limiting prevents brute‑force attacks.', answer: true },
+        { type: 'mc', text: 'Which protocol secures API transport?', options: ['HTTP', 'FTP', 'TLS'], answer: 2 },
+        { type: 'dd', text: 'Drag the correct term: Authorization belongs to ____', choices: ['OAuth', 'DNS'], answer: 'OAuth' }
+    ];
+
+    questions.forEach((q, i) => {
+        const container = document.createElement('div');
+        container.className = 'question-block';
+        container.innerHTML = `<p><strong>Question ${i+1}:</strong> ${q.text}</p>`;
+
+        if (q.type === 'tf') {
+            container.innerHTML += `
+                <label><input type='radio' name='q${i}' value='true'> True</label><br>
+                <label><input type='radio' name='q${i}' value='false'> False</label>
+            `;
+        }
+
+        if (q.type === 'mc') {
+            q.options.forEach((opt, idx) => {
+                container.innerHTML += `
+                    <label><input type='radio' name='q${i}' value='${idx}'> ${opt}</label><br>`;
+            });
+        }
+
+        if (q.type === 'dd') {
+            // Drop zone
+            container.innerHTML += `
+                <div style='padding:10px; border:1px dashed #888; margin-top:10px; min-height:40px;' ondrop='drop(event)' ondragover='allowDrop(event)' data-answer='${q.answer}' id='drop${i}'>Drop answer here</div>
+                <div style='margin-top:10px;'>`;
+            // Draggable choices
+            q.choices.forEach((choice, idx) => {
+                container.innerHTML += `<div draggable='true' ondragstart='drag(event)' id='drag${i}_${idx}' class='draggable' style='display:inline-block; margin-right:8px;'>${choice}</div>`;
+            });
+            container.innerHTML += `</div>`;
+        }
+
+        quizContainer.appendChild(container);
+    });
+}
+
+// Drag & drop handlers
+function allowDrop(ev) { ev.preventDefault(); }
+function drag(ev) { ev.dataTransfer.setData('text', ev.target.id); }
+function drop(ev) {
+    ev.preventDefault();
+    const data = ev.dataTransfer.getData('text');
+    const dragged = document.getElementById(data);
+    if (!dragged) return;
+    ev.target.textContent = dragged.textContent;
+    ev.target.setAttribute('data-dropped', dragged.textContent);
+}
+
+// Timer (single definition)
+function startTimer(){
+    // clear previous if running
+    if (timer) clearInterval(timer);
+    timeLeft = 300;
+    const fill = document.getElementById('timer-fill');
+    const timerText = document.getElementById('timer');
+    fill.style.width = '100%';
+    timerText.textContent = timeLeft + 's';
+
+    timer = setInterval(()=>{
+        timeLeft--;
+        timerText.textContent = timeLeft + 's';
+        // update fill width percentage
+        const pct = Math.max(0, (timeLeft / 300) * 100);
+        fill.style.width = pct + '%';
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            submitQuiz();
+        }
+    },1000);
+}
+
+// Submit & scoring
+function submitQuiz(){
+    if (timer) { clearInterval(timer); timer = null; }
+
+    // Basic scoring: check inputs
+    const quizContainer = document.getElementById('quiz-questions');
+    const blocks = quizContainer.querySelectorAll('.question-block');
+    let score = 0;
+    blocks.forEach((block, idx) => {
+        // find radio answers
+        const radios = block.querySelectorAll('input[type="radio"]');
+        if (radios.length) {
+            const checked = block.querySelector('input[type="radio"]:checked');
+            if (checked) {
+                const q = idx; // our questions array used same order
+                // simple mapping for sample questions
+                if (idx === 0) { // TF true
+                    if (checked.value === 'true') score += 2;
+                } else if (idx === 1) { // MC answer 1
+                    if (checked.value === '1') score += 2;
+                } else if (idx === 2) { // TF true
+                    if (checked.value === 'true') score += 2;
+                } else if (idx === 3) { // MC answer 2
+                    if (checked.value === '2') score += 2;
+                }
+            }
+        } else {
+            // drag/drop question (idx==4)
+            const drop = block.querySelector('[data-dropped]');
+            if (drop && drop.getAttribute('data-dropped') === 'OAuth') score += 2;
+        }
+    });
+
+    // normalize to /10
+    const normalized = Math.min(10, score);
+
+    transitionPage('quiz-page','score-page');
+    document.getElementById('score-display').textContent = `Score: ${normalized}/10`;
+    const badgeEl = document.getElementById('badge-display');
+    badgeEl.innerHTML = '';
+    if (normalized > 7) {
+        badgeEl.innerHTML = '<img class="badge" src="https://via.placeholder.com/120x120?text=Gold+Badge" alt="Gold">';
+    } else if (normalized > 4) {
+        badgeEl.innerHTML = '<img class="badge" src="https://via.placeholder.com/120x120?text=Silver+Badge" alt="Silver">';
+    } else {
+        badgeEl.innerHTML = '<img class="badge" src="https://via.placeholder.com/120x120?text=Bronze+Badge" alt="Bronze">';
+    }
+}
+
+function goHome(){
+    // reset UI
+    document.getElementById('score-page').classList.add('hidden');
+    document.getElementById('home-page').classList.remove('hidden');
+}
+</script>
 </body>
 </html>
